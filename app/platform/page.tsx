@@ -5,6 +5,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 
+import { Hore } from "@/app/platform/components/hore";
 import { Navbar } from "@/app/platform/components/navbar";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,6 +42,10 @@ export default async function PlatformPage() {
              Cotizador Maritimos DLN Forwarding
             </p>
           </div>
+        </div>
+
+        <div className="absolute bottom-6 right-6 z-10 w-[min(100%,22rem)] max-sm:left-6 max-sm:right-6 lg:bottom-8 lg:right-8">
+          <Hore />
         </div>
       </section>
     </main>
