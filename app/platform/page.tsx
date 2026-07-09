@@ -35,12 +35,10 @@ export default async function PlatformPage() {
         <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-8 text-center">
           <div className="flex flex-col items-center gap-5">
             <h1 className="max-w-3xl text-4xl font-normal tracking-[-0.05em] text-foreground sm:text-5xl lg:text-6xl">
-              Hola, {userName}. Tu cotizador de fletes maritimos ya esta listo.
+              Hola, {userName}. 
             </h1>
             <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-              Calcula rutas, revisa puertos, estima transit time y prepara
-              propuestas comerciales para embarques FCL y LCL desde una sola
-              interfaz.
+             Cotizador Maritimos DLN Forwarding
             </p>
           </div>
         </div>
