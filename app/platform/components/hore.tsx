@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Clock3Icon, Globe2Icon } from "lucide-react";
+import { Maximize2Icon, Minimize2Icon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -75,32 +75,35 @@ function formatLocationTime(utcNow: number, location: Location) {
 }
 
 export function Hore({ className }: HoreProps) {
-  const [mounted, setMounted] = useState(false);
-  const [utcNow, setUtcNow] = useState(() => Date.now());
+  const [utcNow, setUtcNow] = useState<number | null>(null);
   const [activeLocation, setActiveLocation] = useState<LocationId>("mexico");
   const [direction, setDirection] = useState(0);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    setUtcNow(Date.now());
-
-    const intervalId = window.setInterval(() => {
+    const updateClock = () => {
       setUtcNow(Date.now());
-    }, 1000);
+    };
 
-    return () => window.clearInterval(intervalId);
+    const rafId = window.requestAnimationFrame(updateClock);
+    const intervalId = window.setInterval(updateClock, 1000);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const activeIndex = locations.findIndex((location) => location.id === activeLocation);
   const activeCity = locations[activeIndex] ?? locations[0];
 
   const currentTime = useMemo(() => {
-    if (!mounted) {
+    if (utcNow === null) {
       return null;
     }
 
     return formatLocationTime(utcNow, activeCity);
-  }, [activeCity, mounted, utcNow]);
+  }, [activeCity, utcNow]);
 
   const handleLocationChange = (nextLocation: LocationId) => {
     const nextIndex = locations.findIndex((location) => location.id === nextLocation);
@@ -121,80 +124,148 @@ export function Hore({ className }: HoreProps) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.88),transparent_72%)]" />
 
         <div className="relative">
-          <div className="grid grid-cols-3 rounded-full bg-black/[0.035] p-1 ring-1 ring-black/5">
-            {locations.map((location) => {
-              const isActive = location.id === activeLocation;
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="mt-1 text-[0.88rem] text-foreground/80">
+                {isMinimized ? "Reloja Mundial" : "Reloj Mundial"}
+              </p>
+            </div>
 
-              return (
-                <button
-                  key={location.id}
-                  type="button"
-                  onClick={() => handleLocationChange(location.id)}
-                  className="relative z-10 rounded-full px-2 py-2.5 text-[0.7rem] leading-none font-medium text-muted-foreground transition-colors"
-                >
-                  {isActive ? (
-                    <motion.span
-                      layoutId="active-world-clock-pill"
-                      className="absolute inset-0 rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/5"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  ) : null}
-                  <span className={cn("relative", isActive ? "text-foreground" : "")}>
-                    {location.region}
-                  </span>
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              onClick={() => setIsMinimized((current) => !current)}
+              aria-label={isMinimized ? "Maximizar reloj" : "Minimizar reloj"}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-black/8 bg-white/75 text-foreground transition-colors hover:bg-white"
+            >
+              {isMinimized ? (
+                <Maximize2Icon className="size-4" />
+              ) : (
+                <Minimize2Icon className="size-4" />
+              )}
+            </button>
           </div>
 
-          <div className="mt-3 rounded-[1.35rem] border border-white/55 bg-white/72 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
-            <AnimatePresence initial={false} mode="wait" custom={direction}>
-              <motion.div
-                key={activeCity.id}
-                custom={direction}
-                initial={{ opacity: 0, x: direction >= 0 ? 18 : -18 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: direction >= 0 ? -18 : 18 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="space-y-3.5"
+          <AnimatePresence initial={false} mode="wait">
+            {isMinimized ? (
+              <motion.button
+                key="minimized"
+                type="button"
+                onClick={() => setIsMinimized(false)}
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="mt-3 flex w-full items-center gap-3 rounded-[1.35rem] border border-white/55 bg-white/78 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="flex size-12 shrink-0 items-center justify-center">
-                      <Image
-                        src={activeCity.flag}
-                        alt={`Bandera de ${activeCity.city}`}
-                        width={34}
-                        height={34}
-                        className="h-8.5 w-8.5 object-contain"
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-lg font-medium tracking-[-0.04em] text-foreground">
-                        {activeCity.city}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {activeCity.region}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 rounded-full bg-black/[0.035] px-3 py-1 text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-black/5">
-                    {mounted ? currentTime?.offset : "UTC"}
-                  </div>
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-black/[0.035] ring-1 ring-black/5">
+                  <Image
+                    src={activeCity.flag}
+                    alt={`Bandera de ${activeCity.city}`}
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 object-contain"
+                  />
                 </div>
 
-                <div className="space-y-1 pl-0.5">
-                  <p className="text-[1.95rem] font-medium tracking-[-0.08em] text-foreground sm:text-[2.2rem]">
-                    {mounted ? currentTime?.time : "--:--:--"}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium tracking-[-0.02em] text-foreground">
+                    {activeCity.city}
                   </p>
-                  <p className="text-sm capitalize text-muted-foreground">
-                    {mounted ? currentTime?.day : "Sincronizando reloj..."}
+                  <p className="truncate text-[0.76rem] text-muted-foreground">
+                    {utcNow !== null ? currentTime?.time : "--:--:--"}
                   </p>
+                </div>
+
+                <div className="rounded-full bg-black/[0.035] px-3 py-1 text-[0.66rem] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-black/5">
+                  {utcNow !== null ? currentTime?.offset : "UTC"}
+                </div>
+              </motion.button>
+            ) : (
+              <motion.div
+                key="expanded"
+                initial={{ opacity: 0, y: 10, scale: 0.985 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.985 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="mt-3"
+              >
+                <div className="grid grid-cols-3 rounded-full bg-black/[0.035] p-1 ring-1 ring-black/5">
+                  {locations.map((location) => {
+                    const isActive = location.id === activeLocation;
+
+                    return (
+                      <button
+                        key={location.id}
+                        type="button"
+                        onClick={() => handleLocationChange(location.id)}
+                        className="relative z-10 rounded-full px-2 py-2.5 text-[0.7rem] leading-none font-medium text-muted-foreground transition-colors"
+                      >
+                        {isActive ? (
+                          <motion.span
+                            layoutId="active-world-clock-pill"
+                            className="absolute inset-0 rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/5"
+                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          />
+                        ) : null}
+                        <span className={cn("relative", isActive ? "text-foreground" : "")}>
+                          {location.region}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 rounded-[1.35rem] border border-white/55 bg-white/72 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                  <AnimatePresence initial={false} mode="wait" custom={direction}>
+                    <motion.div
+                      key={activeCity.id}
+                      custom={direction}
+                      initial={{ opacity: 0, x: direction >= 0 ? 18 : -18 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: direction >= 0 ? -18 : 18 }}
+                      transition={{ duration: 0.22, ease: "easeOut" }}
+                      className="space-y-3.5"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <div className="flex size-12 shrink-0 items-center justify-center">
+                            <Image
+                              src={activeCity.flag}
+                              alt={`Bandera de ${activeCity.city}`}
+                              width={34}
+                              height={34}
+                              className="h-8.5 w-8.5 object-contain"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-lg font-medium tracking-[-0.04em] text-foreground">
+                              {activeCity.city}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {activeCity.region}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 rounded-full bg-black/[0.035] px-3 py-1 text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-black/5">
+                          {utcNow !== null ? currentTime?.offset : "UTC"}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 pl-0.5">
+                        <p className="text-[1.95rem] font-medium tracking-[-0.08em] text-foreground sm:text-[2.2rem]">
+                          {utcNow !== null ? currentTime?.time : "--:--:--"}
+                        </p>
+                        <p className="text-sm capitalize text-muted-foreground">
+                          {utcNow !== null ? currentTime?.day : "Sincronizando reloj..."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </motion.div>
-            </AnimatePresence>
-          </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </aside>

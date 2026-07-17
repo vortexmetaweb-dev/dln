@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
-import {
-  ChevronDownIcon,
-  MicIcon,
-  PlusIcon,
-} from "lucide-react";
+import Link from "next/link";
+import { FileTextIcon } from "lucide-react";
 
-import { Hore } from "@/app/platform/components/hore";
+import { QuotesTable } from "@/app/platform/QuotesTable";
 import { Navbar } from "@/app/platform/components/navbar";
+import { Button } from "@/components/ui/button";
+import { getPlatformQuotes } from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PlatformPage() {
@@ -24,28 +23,56 @@ export default async function PlatformPage() {
     user.user_metadata?.name ||
     user.email ||
     "Usuario";
+  const userAvatarUrl =
+    user.user_metadata?.avatar_url ||
+    user.user_metadata?.picture ||
+    user.user_metadata?.photo_url ||
+    "";
+  const quotesResult = await getPlatformQuotes();
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <Navbar userName={userName} />
+    <main className="h-screen overflow-hidden bg-background text-foreground">
+      <Navbar userName={userName} userAvatarUrl={userAvatarUrl} />
 
-      <section className="relative flex min-h-[calc(100vh-3.5rem)] items-center justify-center overflow-hidden px-6 py-16 lg:px-8">
+      <section className="relative h-[calc(100vh-3.5rem)] overflow-hidden px-6 py-8 lg:px-8 lg:py-10">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(250,250,252,0.96)_0%,rgba(245,248,252,0.92)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(173,206,243,0.48),transparent_36%),radial-gradient(circle_at_center,rgba(255,255,255,0.92),transparent_72%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(173,206,243,0.28),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.9),transparent_58%)]" />
 
-        <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-8 text-center">
-          <div className="flex flex-col items-center gap-5">
-            <h1 className="max-w-3xl text-4xl font-normal tracking-[-0.05em] text-foreground sm:text-5xl lg:text-6xl">
-              Hola, {userName}. 
-            </h1>
-            <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-             Cotizador Maritimos DLN Forwarding
-            </p>
+        <div className="relative mx-auto flex h-full w-full max-w-[1600px] flex-col">
+          <div className="flex flex-col gap-3 border-b border-black/5 pb-5">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2">
+                <h1 className="text-3xl font-normal tracking-[-0.05em] text-foreground sm:text-4xl">
+                  Historial de cotizaciones
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Revisa tus cotizaciones guardadas, abre el ticket PDF y descarga el documento cuando lo necesites.
+                </p>
+              </div>
+
+              <Button asChild size="lg" className="rounded-full">
+                <Link href="/platform/new">
+                  <FileTextIcon />
+                  Nueva cotizacion
+                </Link>
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="absolute bottom-6 right-6 z-10 w-[min(100%,22rem)] max-sm:left-6 max-sm:right-6 lg:bottom-8 lg:right-8">
-          <Hore />
+          <div className="min-h-0 flex-1 pt-6">
+            {quotesResult.errorMessage ? (
+              <div className="flex h-full items-center justify-center rounded-[1.75rem] border border-dashed border-black/10 bg-white/65 px-6 text-center backdrop-blur">
+                <div className="max-w-md space-y-2">
+                  <p className="text-lg font-medium text-foreground">No se pudo cargar el historial.</p>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {quotesResult.errorMessage}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <QuotesTable quotes={quotesResult.quotes} />
+            )}
+          </div>
         </div>
       </section>
     </main>
