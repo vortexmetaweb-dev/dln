@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  composeEightDigitQuoteNumber,
+  getNextMaritimeQuoteSerial,
+} from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/server";
 
 type ChargeItemInput = {
@@ -18,6 +22,7 @@ type ChargeItemInput = {
 
 type OtherItemInput = {
   name: string;
+  goodsDeclaredValue: number;
   valueType: "monto" | "porcentaje";
   value: number;
   vatMode: "sin_iva" | "mas_iva";
@@ -106,6 +111,23 @@ export async function createMaritimeQuote(formData: FormData) {
     redirect("/");
   }
 
+  const stateCode =
+    (readOptionalString(formData, "quote_number_state") || "PUE").slice(0, 3).toUpperCase() ||
+    "PUE";
+  const yearTwo = (readOptionalString(formData, "quote_number_year") || "")
+    .replace(/\D/g, "")
+    .slice(0, 2)
+    .padEnd(2, "0");
+  const yearForSerial = yearTwo
+    ? 2000 + Number(yearTwo)
+    : new Date().getFullYear();
+  const { nextEightDigit, nextSerial } = await getNextMaritimeQuoteSerial({
+    stateCode,
+    yearTwoDigits: yearTwo || String(new Date().getFullYear()).slice(-2),
+    supabaseClient: supabase,
+  });
+  const finalQuoteNumber = `${stateCode}${yearTwo || String(yearForSerial).slice(-2)}-${nextEightDigit}`;
+
   const quotePayload = {
     issuer_trade_name: readString(formData, "issuer_trade_name"),
     issuer_legal_name: readString(formData, "issuer_legal_name"),
@@ -125,7 +147,7 @@ export async function createMaritimeQuote(formData: FormData) {
     route_transit_time: readOptionalString(formData, "route_transit_time"),
     quote_issue_date: readOptionalDate(formData, "quote_issue_date"),
     quote_valid_until: readOptionalDate(formData, "quote_valid_until"),
-    quote_number: readOptionalString(formData, "quote_number"),
+    quote_number: finalQuoteNumber,
     document_currencies: parseCurrencies(readString(formData, "quote_currencies")),
     status: "draft",
   };
@@ -162,6 +184,7 @@ export async function createMaritimeQuote(formData: FormData) {
 
       return {
         name,
+        goodsDeclaredValue: Math.max(0, toNumber(fields.goods_declared_value ?? "0", 0)),
         valueType: valueType === "porcentaje" ? "porcentaje" : "monto",
         value: Math.max(0, toNumber(fields.value ?? "0", 0)),
         vatMode: vatMode === "mas_iva" ? "mas_iva" : "sin_iva",
@@ -193,7 +216,10 @@ export async function createMaritimeQuote(formData: FormData) {
 
   const otherTotals = otherRows.reduce(
     (acc, row) => {
-      const base = row.valueType === "monto" ? row.value : 0;
+      const base =
+        row.valueType === "monto"
+          ? row.value
+          : (row.goodsDeclaredValue * Math.max(0, row.value)) / 100;
       const vat = row.vatMode === "mas_iva" ? base * IVA_RATE : 0;
       acc.baseMxn += base;
       acc.vatMxn += vat;
@@ -248,13 +274,17 @@ export async function createMaritimeQuote(formData: FormData) {
 
   if (otherRows.length > 0) {
     const otherInsert = otherRows.map((row) => {
-      const base = row.valueType === "monto" ? row.value : 0;
+      const base =
+        row.valueType === "monto"
+          ? row.value
+          : (row.goodsDeclaredValue * Math.max(0, row.value)) / 100;
       const vat = row.vatMode === "mas_iva" ? base * IVA_RATE : 0;
       const total = base + vat;
 
       return {
         quote_id: quoteId,
         name: row.name,
+        goods_declared_value: row.goodsDeclaredValue,
         value_type: row.valueType,
         value: row.value,
         currency: "MXN",

@@ -10,9 +10,11 @@ import {
 
 import { createMaritimeQuote } from "@/app/actions/quotes";
 import { ChargeConceptsEditor } from "@/app/platform/new/ChargeConceptsEditor";
+import { QuoteNumberBuilder } from "@/app/platform/new/QuoteNumberBuilder";
 import { Navbar } from "@/app/platform/components/navbar";
 import { Button } from "@/components/ui/button";
 import { getPlatformEquipmentTypes } from "@/lib/equipment-types";
+import { getNextMaritimeQuoteSerial } from "@/lib/quotes";
 import { getPlatformServices } from "@/lib/services";
 import { createClient } from "@/lib/supabase/server";
 
@@ -84,11 +86,13 @@ export default async function PlatformNewQuotePage() {
     redirect("/");
   }
 
-  const userName =
+  const userFullName =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
     user.email ||
     "Usuario";
+  const userName = userFullName;
+  const userEmail = user.email ?? "";
   const userAvatarUrl =
     user.user_metadata?.avatar_url ||
     user.user_metadata?.picture ||
@@ -96,6 +100,12 @@ export default async function PlatformNewQuotePage() {
     "";
   const serviceOptions = await getPlatformServices();
   const equipmentTypeOptions = await getPlatformEquipmentTypes();
+  const defaultYearTwo = String(new Date().getFullYear()).slice(-2);
+  const defaultSerial = await getNextMaritimeQuoteSerial({
+    stateCode: "PUE",
+    yearTwoDigits: defaultYearTwo,
+    supabaseClient: supabase,
+  });
 
   return (
     <main className="h-screen overflow-hidden bg-background text-foreground">
@@ -197,6 +207,7 @@ export default async function PlatformNewQuotePage() {
                       <Field label="Correo de Contacto">
                         <input
                           className={inputClassName}
+                          defaultValue={userEmail}
                           placeholder="correo@dlnforwarding.com"
                           name="issuer_contact_email"
                           type="email"
@@ -225,6 +236,40 @@ export default async function PlatformNewQuotePage() {
                           className={inputClassName}
                           placeholder="Nombre y apellido"
                           name="client_contact_name"
+                        />
+                      </Field>
+                    </div>
+                  </FormSection>
+
+                  <FormSection
+                    icon={<CalendarClockIcon className="size-3.5" />}
+                    eyebrow="Control documental"
+                    title="Control de la cotización"
+                    description="Datos administrativos que permiten identificar y emitir el documento final."
+                  >
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Fecha de Emisión">
+                        <input className={inputClassName} name="quote_issue_date" type="date" />
+                      </Field>
+
+                      <Field label="Vigencia">
+                        <input className={inputClassName} name="quote_valid_until" type="date" />
+                      </Field>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <QuoteNumberBuilder
+                        inputClassName={inputClassName}
+                        defaultStateCode="PUE"
+                        defaultYearTwoDigits={defaultYearTwo}
+                        defaultNextEightDigit={defaultSerial.nextEightDigit}
+                      />
+
+                      <Field label="Monedas del Documento">
+                        <input
+                          className={inputClassName}
+                          placeholder="USD / MXN"
+                          name="quote_currencies"
                         />
                       </Field>
                     </div>
@@ -296,41 +341,6 @@ export default async function PlatformNewQuotePage() {
                       inputClassName={inputClassName}
                       textareaClassName={textareaClassName}
                     />
-                  </FormSection>
-
-                  <FormSection
-                    icon={<CalendarClockIcon className="size-3.5" />}
-                    eyebrow="Control documental"
-                    title="Control de la cotización"
-                    description="Datos administrativos que permiten identificar y emitir el documento final."
-                  >
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Fecha de Emisión">
-                        <input className={inputClassName} name="quote_issue_date" type="date" />
-                      </Field>
-
-                      <Field label="Vigencia">
-                        <input className={inputClassName} name="quote_valid_until" type="date" />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="N.º de Cotización">
-                        <input
-                          className={inputClassName}
-                          placeholder="Ej. PUE26-15042026"
-                          name="quote_number"
-                        />
-                      </Field>
-
-                      <Field label="Monedas del Documento">
-                        <input
-                          className={inputClassName}
-                          placeholder="USD / MXN"
-                          name="quote_currencies"
-                        />
-                      </Field>
-                    </div>
                   </FormSection>
 
                   <div className="sticky bottom-0 z-10 -mx-2 rounded-[1.75rem] border border-black/6 bg-white/80 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] backdrop-blur sm:mx-0">

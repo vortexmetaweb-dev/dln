@@ -21,6 +21,7 @@ type ChargeConcept = {
 type OtherConcept = {
   id: string;
   name: string;
+  goodsDeclaredValue: string;
   valueType: "monto" | "porcentaje";
   value: string;
   vatMode: "sin_iva" | "mas_iva";
@@ -54,6 +55,7 @@ function createEmptyOtherConcept(): OtherConcept {
   return {
     id: crypto.randomUUID(),
     name: "",
+    goodsDeclaredValue: "",
     valueType: "monto",
     value: "",
     vatMode: "sin_iva",
@@ -100,8 +102,11 @@ export function ChargeConceptsEditor({
     return otherConcepts.reduce(
       (acc, concept) => {
         const rawValue = Number(concept.value || 0);
+        const goodsValueNormalized = concept.goodsDeclaredValue.replace(/,/g, "").trim();
+        const goodsValue = Number.parseFloat(goodsValueNormalized);
+        const safeGoodsValue = Number.isFinite(goodsValue) ? goodsValue : 0;
         const baseAmount =
-          concept.valueType === "porcentaje" ? (totals.subtotal * rawValue) / 100 : rawValue;
+          concept.valueType === "porcentaje" ? (safeGoodsValue * rawValue) / 100 : rawValue;
         const vatAmount = concept.vatMode === "mas_iva" ? baseAmount * IVA_RATE : 0;
         acc.subtotal += baseAmount;
         acc.vat += vatAmount;
@@ -110,7 +115,7 @@ export function ChargeConceptsEditor({
       },
       { subtotal: 0, vat: 0, total: 0 },
     );
-  }, [otherConcepts, totals.subtotal]);
+  }, [otherConcepts]);
 
   const updateConcept = <K extends keyof ChargeConcept>(
     id: string,
@@ -388,8 +393,11 @@ export function ChargeConceptsEditor({
         <div className="mt-5 grid gap-4">
           {otherConcepts.map((concept, index) => {
             const rawValue = Number(concept.value || 0);
+            const goodsValueNormalized = concept.goodsDeclaredValue.replace(/,/g, "").trim();
+            const goodsValueParsed = Number.parseFloat(goodsValueNormalized);
+            const safeGoodsValue = Number.isFinite(goodsValueParsed) ? goodsValueParsed : 0;
             const baseAmount =
-              concept.valueType === "porcentaje" ? (totals.subtotal * rawValue) / 100 : rawValue;
+              concept.valueType === "porcentaje" ? (safeGoodsValue * rawValue) / 100 : rawValue;
             const vatAmount = concept.vatMode === "mas_iva" ? baseAmount * IVA_RATE : 0;
             const total = baseAmount + vatAmount;
 
@@ -418,15 +426,40 @@ export function ChargeConceptsEditor({
                 </div>
 
                 <div className="mt-4 grid gap-3 xl:grid-cols-4">
-                  <div className="grid gap-1.5 xl:col-span-2">
+                  <div className="grid gap-1.5">
                     <label className="text-[0.72rem] font-medium text-muted-foreground">Nombre</label>
                     <input
                       className={inputClassName}
                       name={`other_concepts.${index}.name`}
-                      placeholder="Ej. Manejo adicional / Recargo / Descuento"
+                      placeholder="Ej. Seguro / Manejo / Recargo"
                       value={concept.name}
                       onChange={(event) => updateOtherConcept(concept.id, "name", event.target.value)}
                     />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <label className="text-[0.72rem] font-medium text-orange-700">
+                      Monto total mercancía
+                    </label>
+                    <input
+                      className={inputClassName}
+                      name={`other_concepts.${index}.goods_declared_value`}
+                      placeholder="0.00 MXN"
+                      inputMode="decimal"
+                      value={concept.goodsDeclaredValue}
+                      onChange={(event) =>
+                        updateOtherConcept(concept.id, "goodsDeclaredValue", event.target.value)
+                      }
+                    />
+                    {safeGoodsValue > 0 ? (
+                      <p className="text-[0.72rem] text-orange-700">
+                        Base: <span className="font-medium">{formatMoney(safeGoodsValue, "MXN")}</span>
+                      </p>
+                    ) : concept.valueType === "porcentaje" ? (
+                      <p className="text-[0.72rem] text-muted-foreground">
+                        Ingresa un monto para aplicar el %.
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-1.5">
@@ -453,7 +486,7 @@ export function ChargeConceptsEditor({
                     <input
                       className={inputClassName}
                       name={`other_concepts.${index}.value`}
-                      placeholder={concept.valueType === "porcentaje" ? "0.00" : "0.00"}
+                      placeholder={concept.valueType === "porcentaje" ? "0.50" : "0.00"}
                       inputMode="decimal"
                       value={concept.value}
                       onChange={(event) => updateOtherConcept(concept.id, "value", event.target.value)}

@@ -27,6 +27,7 @@ export type PlatformQuoteChargeItem = {
   unitPrice: number;
   currency: "USD" | "MXN" | "EUR";
   vatMode: "sin_iva" | "mas_iva";
+  vatRate: number | null;
   baseAmount: number;
   vatAmount: number;
   totalAmount: number;
@@ -36,10 +37,12 @@ export type PlatformQuoteChargeItem = {
 export type PlatformQuoteOtherItem = {
   id: string;
   name: string;
+  goodsDeclaredValue: number;
   valueType: "monto" | "porcentaje";
   value: number;
   currency: "MXN";
   vatMode: "sin_iva" | "mas_iva";
+  vatRate: number | null;
   baseAmountMxn: number;
   vatAmountMxn: number;
   totalAmountMxn: number;
@@ -176,6 +179,10 @@ function mapChargeItem(record: QuoteItemRecord): PlatformQuoteChargeItem {
           ? "EUR"
           : "USD",
     vatMode: pickFirstString(record.vat_mode) === "mas_iva" ? "mas_iva" : "sin_iva",
+    vatRate:
+      typeof record.vat_rate === "number" && Number.isFinite(record.vat_rate)
+        ? (record.vat_rate as number)
+        : null,
     baseAmount: pickNumber(record.base_amount),
     vatAmount: pickNumber(record.vat_amount),
     totalAmount: pickNumber(record.total_amount),
@@ -187,10 +194,15 @@ function mapOtherItem(record: QuoteItemRecord): PlatformQuoteOtherItem {
   return {
     id: pickFirstString(record.id) ?? crypto.randomUUID(),
     name: pickFirstString(record.name) ?? "Sin nombre",
+    goodsDeclaredValue: pickNumber(record.goods_declared_value),
     valueType: pickFirstString(record.value_type) === "porcentaje" ? "porcentaje" : "monto",
     value: pickNumber(record.value),
     currency: "MXN",
     vatMode: pickFirstString(record.vat_mode) === "mas_iva" ? "mas_iva" : "sin_iva",
+    vatRate:
+      typeof record.vat_rate === "number" && Number.isFinite(record.vat_rate)
+        ? (record.vat_rate as number)
+        : null,
     baseAmountMxn: pickNumber(record.base_amount_mxn),
     vatAmountMxn: pickNumber(record.vat_amount_mxn),
     totalAmountMxn: pickNumber(record.total_amount_mxn),
@@ -283,6 +295,98 @@ export async function getPlatformQuoteDetail(quoteId: string): Promise<PlatformQ
         : {},
     chargeItems: (chargeItems ?? []).map((entry) => mapChargeItem(entry as QuoteItemRecord)),
     otherItems: (otherItems ?? []).map((entry) => mapOtherItem(entry as QuoteItemRecord)),
+  };
+}
+
+export function composeEightDigitQuoteNumber(serialFour: number, fullYear: number) {
+  const serial = Math.max(0, Math.floor(serialFour));
+  const yearFull = String(fullYear).slice(-4).padStart(4, "0");
+  const serialPadded = String(serial).padStart(4, "0").slice(-4);
+  return `${serialPadded}${yearFull}`;
+}
+
+export function composeQuoteNumber(
+  stateCode: string,
+  yearTwoDigits: string,
+  eightDigitPart: string,
+) {
+  const safeState = String(stateCode || "").slice(0, 3).toUpperCase();
+  const safeYear = String(yearTwoDigits || "").replace(/\D/g, "").slice(0, 2).padEnd(2, "0");
+  const safeEight = String(eightDigitPart || "").replace(/\D/g, "").slice(0, 8).padStart(8, "0");
+  return `${safeState}${safeYear}-${safeEight}`;
+}
+
+export function splitQuoteNumberEightDigit(eightDigitPart: string): {
+  serial: number | null;
+  fullYear: number | null;
+} {
+  const clean = String(eightDigitPart || "").replace(/\D/g, "");
+  if (clean.length !== 8) {
+    return { serial: null, fullYear: null };
+  }
+  const serialPart = clean.slice(0, 4);
+  const yearPart = clean.slice(4, 8);
+  const serial = Number.parseInt(serialPart, 10);
+  const fullYear = Number.parseInt(yearPart, 10);
+  return {
+    serial: Number.isFinite(serial) ? serial : null,
+    fullYear: Number.isFinite(fullYear) ? fullYear : null,
+  };
+}
+
+export async function getNextMaritimeQuoteSerial(params: {
+  stateCode: string;
+  yearTwoDigits: string;
+  supabaseClient?: ReturnType<typeof createClient> extends Promise<infer T> ? T : never;
+}) {
+  const supabase = params.supabaseClient ?? (await createClient());
+  const safeState = String(params.stateCode || "").slice(0, 3).toUpperCase();
+  const safeYear = String(params.yearTwoDigits || "")
+    .replace(/\D/g, "")
+    .slice(0, 2)
+    .padEnd(2, "0");
+  const prefix = `${safeState}${safeYear}-`;
+
+  const { data } = await supabase
+    .from("maritime_quotes")
+    .select("quote_number")
+    .not("quote_number", "is", null)
+    .like("quote_number", `${prefix}%`)
+    .order("quote_number", { ascending: false })
+    .limit(50);
+
+  if (!data || data.length === 0) {
+    return {
+      prefix,
+      nextSerial: 1,
+      nextEightDigit: composeEightDigitQuoteNumber(1, 2000 + Number(safeYear)),
+    };
+  }
+
+  let maxSerial = 0;
+  let yearFromDb: number | null = null;
+
+  for (const row of data) {
+    const raw = (row as { quote_number?: string | null }).quote_number;
+    if (!raw || !raw.startsWith(prefix)) continue;
+    const eight = raw.slice(prefix.length);
+    const { serial, fullYear } = splitQuoteNumberEightDigit(eight);
+    if (serial === null || fullYear === null) continue;
+    yearFromDb = fullYear;
+    if (serial > maxSerial) {
+      maxSerial = serial;
+    }
+  }
+
+  const fallbackFullYear = 2000 + Number(safeYear);
+  const nextSerial = maxSerial >= 0 ? maxSerial + 1 : 1;
+  return {
+    prefix,
+    nextSerial,
+    nextEightDigit: composeEightDigitQuoteNumber(
+      nextSerial,
+      yearFromDb ?? fallbackFullYear,
+    ),
   };
 }
 

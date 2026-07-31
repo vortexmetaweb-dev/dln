@@ -9,6 +9,9 @@ import { Configuracion } from "./configuracion";
 import { CreateUserDrawer } from "./CreateUserDrawer";
 import { Button } from "@/components/ui/button";
 
+const DLN_LOGO_SRC =
+  "/WhatsApp_Image_2026-07-16_at_3.23.02_PM-removebg-preview.png";
+
 const menuItems = [
   { label: "Usuarios", href: "/platform/users" },
   { label: "Historial", href: "/platform" },
@@ -36,8 +39,23 @@ export function Navbar({ userName, userAvatarUrl }: NavbarProps) {
   return (
     <>
       <header className="border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex min-h-12 w-full max-w-[1600px] items-center justify-between gap-3 px-3 lg:px-5">
-          <div className="flex items-center gap-1.5">
+        <div className="mx-auto flex min-h-14 w-full max-w-[1600px] items-center justify-between gap-3 px-3 lg:px-5">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Link
+              href="/platform"
+              className="group flex items-center gap-2 rounded-full px-1.5 py-1.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+              aria-label="Ir al inicio de DLN Forwarding"
+            >
+              <img
+                src={DLN_LOGO_SRC}
+                alt="DLN Forwarding"
+                className="block h-9 w-auto shrink-0 object-contain sm:h-10"
+                style={{ maxWidth: 140 }}
+              />
+            </Link>
+
+            <div className="hidden h-6 w-px bg-border sm:block" />
+
             <Button asChild size="sm" className="rounded-xl">
               <Link href="/platform/new">
                 <PlusIcon data-icon="inline-start" />
