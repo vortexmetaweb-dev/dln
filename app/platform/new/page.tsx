@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
 import {
   Building2Icon,
   CalendarClockIcon,
@@ -8,75 +7,83 @@ import {
   UserIcon,
 } from "lucide-react";
 
-import { createMaritimeQuote } from "@/app/actions/quotes";
-import { ChargeConceptsEditor } from "@/app/platform/new/ChargeConceptsEditor";
-import { QuoteNumberBuilder } from "@/app/platform/new/QuoteNumberBuilder";
+import {
+  createMaritimeQuote,
+  getEditableQuote,
+  updateMaritimeQuote,
+  type EditableQuoteDraft,
+} from "@/app/actions/quotes";
+import { QuoteForm, type QuoteFormFeedback } from "@/app/platform/new/QuoteForm";
 import { Navbar } from "@/app/platform/components/navbar";
-import { Button } from "@/components/ui/button";
 import { getPlatformEquipmentTypes } from "@/lib/equipment-types";
 import { getNextMaritimeQuoteSerial } from "@/lib/quotes";
 import { getPlatformServices } from "@/lib/services";
 import { createClient } from "@/lib/supabase/server";
 
-const inputClassName =
-  "h-10 w-full rounded-full border border-black/10 bg-white/80 px-3.5 text-[0.82rem] text-foreground outline-none placeholder:text-muted-foreground transition-colors focus:border-black/25 focus:bg-white";
-
-const textareaClassName =
-  "min-h-20 w-full resize-none rounded-[1.25rem] border border-black/10 bg-white/80 px-3.5 py-2.5 text-[0.82rem] leading-5 text-foreground outline-none placeholder:text-muted-foreground transition-colors focus:border-black/25 focus:bg-white";
-
-function FormSection({
-  icon,
-  eyebrow,
-  title,
-  description,
-  children,
-}: {
-  icon: ReactNode;
-  eyebrow: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[1.75rem] border border-black/6 bg-white/88 p-5 shadow-[0_18px_48px_rgba(15,23,42,0.05)] backdrop-blur sm:p-6">
-      <div className="flex flex-col gap-4 border-b border-black/6 pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[0.68rem] font-medium uppercase tracking-[0.24em] text-muted-foreground">
-            <span className="flex size-7 items-center justify-center rounded-full bg-black/[0.04] text-foreground">
-              {icon}
-            </span>
-            {eyebrow}
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-lg font-medium tracking-[-0.03em] text-foreground">{title}</h2>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-3">{children}</div>
-    </section>
-  );
+async function handleCreateActionWrapper(
+  state: QuoteFormFeedback,
+  formData: FormData,
+): Promise<QuoteFormFeedback> {
+  "use server";
+  try {
+    const result = await createMaritimeQuote(formData);
+    return {
+      success: true,
+      message: `Cotización ${result.quoteNumber} creada correctamente.`,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.length > 0
+        ? error.message
+        : "No se pudo crear la cotización.";
+    return { success: false, message };
+  }
 }
 
-function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={["grid gap-1.5", className].filter(Boolean).join(" ")}>
-      <label className="text-[0.72rem] font-medium text-muted-foreground">{label}</label>
-      {children}
-    </div>
-  );
+async function handleUpdateActionWrapper(
+  state: QuoteFormFeedback,
+  formData: FormData,
+): Promise<QuoteFormFeedback> {
+  "use server";
+
+  const quoteId = formData.get("quote_id");
+  if (typeof quoteId !== "string" || quoteId.trim().length === 0) {
+    return {
+      success: false,
+      message: "No se identificó la cotización a actualizar.",
+    };
+  }
+
+  try {
+    const result = await updateMaritimeQuote(quoteId, formData);
+    return {
+      success: true,
+      message: `Cotización ${result.quoteNumber} actualizada correctamente.`,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.length > 0
+        ? error.message
+        : "No se pudo actualizar la cotización.";
+    return { success: false, message };
+  }
 }
 
-export default async function PlatformNewQuotePage() {
+const ICONS = {
+  Building2Icon,
+  CalendarClockIcon,
+  ReceiptTextIcon,
+  ShipIcon,
+  UserIcon,
+};
+
+type NewQuotePageProps = {
+  params: Promise<Record<string, never>>;
+  searchParams: Promise<{ id?: string | string[] }>;
+};
+
+export default async function PlatformNewQuotePage(props: NewQuotePageProps) {
+  void ICONS;
   const supabase = await createClient();
   const {
     data: { user },
@@ -101,11 +108,104 @@ export default async function PlatformNewQuotePage() {
   const serviceOptions = await getPlatformServices();
   const equipmentTypeOptions = await getPlatformEquipmentTypes();
   const defaultYearTwo = String(new Date().getFullYear()).slice(-2);
-  const defaultSerial = await getNextMaritimeQuoteSerial({
-    stateCode: "PUE",
-    yearTwoDigits: defaultYearTwo,
-    supabaseClient: supabase,
-  });
+
+  const resolvedSearch = await props.searchParams;
+  const rawId = resolvedSearch?.id;
+  const editingId: string | null = Array.isArray(rawId)
+    ? rawId[0]?.toString().trim() ?? null
+    : typeof rawId === "string" && rawId.trim().length > 0
+      ? rawId.trim()
+      : null;
+
+  const emptyDraft: EditableQuoteDraft = {
+    id: null,
+    issuer: {
+      tradeName: "DLN FORWARDING",
+      legalName: "NELLY TRESS TAKAHASHI",
+      rfc: "TETN680531TJ6",
+      taxAddress:
+        "Carr. Libramiento Santa Fe San Julian Km. 3.7, Col. Nueva Dr. Delfino A. Victoria, C.P. 91690, Veracruz, Veracruz",
+      phone: "2221526990",
+      website: "www.dinforwarding.com",
+      sellerName: "",
+      contactEmail: userEmail,
+    },
+    client: {
+      companyName: "",
+      contactName: "",
+    },
+    control: {
+      issueDate: "",
+      validUntil: "",
+      stateCode: "PUE",
+      yearTwo: defaultYearTwo,
+      eightDigit: "",
+      currencies: "USD / MXN",
+    },
+    route: {
+      originPort: "",
+      destinationPort: "",
+      incoterm: "",
+      shippingLine: "",
+      freeDays: "",
+      transitTime: "",
+    },
+    chargeItems: [],
+    otherItems: [],
+  };
+
+  let hydratedDraft: EditableQuoteDraft = emptyDraft;
+  let fallbackEightDigit: string;
+  let pageMode: "create" | "edit" = "create";
+  let actionForForm:
+    | typeof handleCreateActionWrapper
+    | typeof handleUpdateActionWrapper = handleCreateActionWrapper;
+
+  if (editingId) {
+    const existing = await getEditableQuote(editingId);
+    if (!existing) {
+      redirect("/platform");
+    }
+
+    const serialForEdit = await getNextMaritimeQuoteSerial({
+      stateCode: existing.control.stateCode || "PUE",
+      yearTwoDigits: existing.control.yearTwo || defaultYearTwo,
+      supabaseClient: supabase,
+    });
+    const safeEight =
+      existing.control.eightDigit && existing.control.eightDigit.length === 8
+        ? existing.control.eightDigit
+        : serialForEdit.nextEightDigit;
+
+    hydratedDraft = {
+      ...existing,
+      control: {
+        ...existing.control,
+        eightDigit: safeEight,
+      },
+    };
+    pageMode = "edit";
+    fallbackEightDigit = safeEight;
+    actionForForm = handleUpdateActionWrapper;
+  } else {
+    const defaultSerial = await getNextMaritimeQuoteSerial({
+      stateCode: "PUE",
+      yearTwoDigits: defaultYearTwo,
+      supabaseClient: supabase,
+    });
+    hydratedDraft = {
+      ...emptyDraft,
+      control: {
+        ...emptyDraft.control,
+        eightDigit: defaultSerial.nextEightDigit,
+      },
+    };
+    fallbackEightDigit = defaultSerial.nextEightDigit;
+  }
+
+  const titleStateCode = hydratedDraft.control.stateCode || "PUE";
+  const titleYearTwo = hydratedDraft.control.yearTwo || defaultYearTwo;
+  const titleEightDigit = fallbackEightDigit;
 
   return (
     <main className="h-screen overflow-hidden bg-background text-foreground">
@@ -113,19 +213,40 @@ export default async function PlatformNewQuotePage() {
 
       <section className="relative h-[calc(100vh-3.5rem)] overflow-hidden px-6 py-8 lg:px-8 lg:py-10">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(250,250,252,0.96)_0%,rgba(245,248,252,0.92)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(173,206,243,0.28),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.9),transparent_58%)]" />
+        {pageMode === "edit" ? (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,208,160,0.26),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.9),transparent_58%)]" />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(173,206,243,0.28),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.9),transparent_58%)]" />
+        )}
 
         <div className="relative mx-auto flex h-full w-full max-w-[1600px] flex-col">
           <div className="flex flex-col gap-5 border-b border-black/5 pb-6">
-
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-2">
+                {pageMode === "edit" ? (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/[0.06] px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-orange-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                    Editar cotización
+                  </div>
+                ) : null}
                 <h1 className="text-3xl font-normal tracking-[-0.05em] text-foreground sm:text-4xl">
-                  Nueva cotización
+                  {pageMode === "edit" ? (
+                    <>
+                      {titleStateCode}
+                      {titleYearTwo}
+                      <span className="text-muted-foreground/70"> — </span>
+                      <span className="font-mono text-[1.95rem] tracking-[-0.04em] text-foreground/90">
+                        {titleEightDigit}
+                      </span>
+                    </>
+                  ) : (
+                    "Nueva cotización"
+                  )}
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Una vista más ordenada para capturar emisor, cliente, tránsito y control del documento
-                  antes de pasar al cálculo.
+                  {pageMode === "edit"
+                    ? "Modifica cualquier campo y guarda. Se actualizarán los conceptos, totales y el PDF se regenera automáticamente. Los cambios incrementan la versión y actualizan la fecha de edición."
+                    : "Una vista más ordenada para capturar emisor, cliente, tránsito y control del documento antes de pasar al cálculo."}
                 </p>
               </div>
             </div>
@@ -134,229 +255,19 @@ export default async function PlatformNewQuotePage() {
           <div className="min-h-0 flex-1 pt-6">
             <div className="h-full overflow-auto pr-1">
               <div className="w-full">
-                <form className="grid gap-5" action={createMaritimeQuote}>
-                  <FormSection
-                    icon={<Building2Icon className="size-3.5" />}
-                    eyebrow="Datos del emisor"
-                    title="Proveedor / Forwarder"
-                    description="Información corporativa y de contacto que se imprimirá en la cabecera de la cotización."
-                  >
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Nombre Comercial">
-                        <input
-                          className={inputClassName}
-                          defaultValue="DLN FORWARDING"
-                          name="issuer_trade_name"
-                        />
-                      </Field>
-
-                      <Field label="Razón Social">
-                        <input
-                          className={inputClassName}
-                          defaultValue="NELLY TRESS TAKAHASHI"
-                          name="issuer_legal_name"
-                        />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="RFC">
-                        <input
-                          className={inputClassName}
-                          defaultValue="TETN680531TJ6"
-                          name="issuer_rfc"
-                        />
-                      </Field>
-
-                      <Field label="Teléfono / Celular">
-                        <input
-                          className={inputClassName}
-                          defaultValue="2221526990"
-                          name="issuer_phone"
-                        />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Sitio Web">
-                        <input
-                          className={inputClassName}
-                          defaultValue="www.dinforwarding.com"
-                          name="issuer_website"
-                        />
-                      </Field>
-
-                      <Field label="Vendedor">
-                        <input
-                          className={inputClassName}
-                          placeholder="Nombre del vendedor"
-                          name="issuer_seller_name"
-                        />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3">
-                      <Field label="Dirección Fiscal">
-                        <textarea
-                          className={textareaClassName}
-                          defaultValue="Carr. Libramiento Santa Fe San Julian Km. 3.7, Col. Nueva Dr. Delfino A. Victoria, C.P. 91690, Veracruz, Veracruz"
-                          name="issuer_tax_address"
-                        />
-                      </Field>
-
-                      <Field label="Correo de Contacto">
-                        <input
-                          className={inputClassName}
-                          defaultValue={userEmail}
-                          placeholder="correo@dlnforwarding.com"
-                          name="issuer_contact_email"
-                          type="email"
-                        />
-                      </Field>
-                    </div>
-                  </FormSection>
-
-                  <FormSection
-                    icon={<UserIcon className="size-3.5" />}
-                    eyebrow="Datos del cliente"
-                    title="Cliente"
-                    description="Identifica la empresa y el contacto principal que recibirá la propuesta comercial."
-                  >
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Nombre de la Empresa">
-                        <input
-                          className={inputClassName}
-                          placeholder="Empresa"
-                          name="client_company_name"
-                        />
-                      </Field>
-
-                      <Field label="Contacto Primario">
-                        <input
-                          className={inputClassName}
-                          placeholder="Nombre y apellido"
-                          name="client_contact_name"
-                        />
-                      </Field>
-                    </div>
-                  </FormSection>
-
-                  <FormSection
-                    icon={<CalendarClockIcon className="size-3.5" />}
-                    eyebrow="Control documental"
-                    title="Control de la cotización"
-                    description="Datos administrativos que permiten identificar y emitir el documento final."
-                  >
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Fecha de Emisión">
-                        <input className={inputClassName} name="quote_issue_date" type="date" />
-                      </Field>
-
-                      <Field label="Vigencia">
-                        <input className={inputClassName} name="quote_valid_until" type="date" />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <QuoteNumberBuilder
-                        inputClassName={inputClassName}
-                        defaultStateCode="PUE"
-                        defaultYearTwoDigits={defaultYearTwo}
-                        defaultNextEightDigit={defaultSerial.nextEightDigit}
-                      />
-
-                      <Field label="Monedas del Documento">
-                        <input
-                          className={inputClassName}
-                          placeholder="USD / MXN"
-                          name="quote_currencies"
-                        />
-                      </Field>
-                    </div>
-                  </FormSection>
-
-                  <FormSection
-                    icon={<ShipIcon className="size-3.5" />}
-                    eyebrow="Tránsito marítimo"
-                    title="Ruta y operación"
-                    description="Define origen, destino y condiciones del tránsito para contextualizar la futura tarifa."
-                  >
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Puerto de Origen">
-                        <input
-                          className={inputClassName}
-                          placeholder="Ej. Qingdao"
-                          name="route_origin_port"
-                        />
-                      </Field>
-
-                      <Field label="Puerto de Destino">
-                        <input
-                          className={inputClassName}
-                          placeholder="Ej. Manzanillo, Colima"
-                          name="route_destination_port"
-                        />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Incoterm">
-                        <input className={inputClassName} placeholder="FOB" name="route_incoterm" />
-                      </Field>
-
-                      <Field label="Naviera">
-                        <input className={inputClassName} placeholder="MSC" name="route_shipping_line" />
-                      </Field>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <Field label="Días Libres de Demoras">
-                        <input
-                          className={inputClassName}
-                          placeholder="21"
-                          name="route_free_days"
-                          inputMode="numeric"
-                        />
-                      </Field>
-
-                      <Field label="Tiempo de Tránsito (Estimado)">
-                        <input
-                          className={inputClassName}
-                          placeholder="20-29 días"
-                          name="route_transit_time"
-                        />
-                      </Field>
-                    </div>
-                  </FormSection>
-
-                  <FormSection
-                    icon={<ReceiptTextIcon className="size-3.5" />}
-                    eyebrow="Conceptos a cobrar"
-                    title="Cargos, equipo e impuestos"
-                    description="Agrega los conceptos a cobrar, tipo de equipo, precio, moneda, IVA y notas comerciales."
-                  >
-                    <ChargeConceptsEditor
-                      serviceOptions={serviceOptions}
-                      equipmentTypeOptions={equipmentTypeOptions}
-                      inputClassName={inputClassName}
-                      textareaClassName={textareaClassName}
-                    />
-                  </FormSection>
-
-                  <div className="sticky bottom-0 z-10 -mx-2 rounded-[1.75rem] border border-black/6 bg-white/80 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] backdrop-blur sm:mx-0">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">Guardar cotización</p>
-                        <p className="text-[0.78rem] leading-5 text-muted-foreground">
-                          Se guarda en tu historial y solo tú la verás (Admin puede ver todas).
-                        </p>
-                      </div>
-                      <Button type="submit" size="lg" className="rounded-full px-6">
-                        Guardar cotización
-                      </Button>
-                    </div>
-                  </div>
-                </form>
+                <QuoteForm
+                  mode={pageMode}
+                  quoteId={editingId ?? undefined}
+                  userName={userName}
+                  userEmail={userEmail}
+                  initialDraft={hydratedDraft}
+                  defaultNextEightDigit={fallbackEightDigit}
+                  catalogs={{
+                    serviceOptions,
+                    equipmentTypeOptions,
+                  }}
+                  action={actionForForm}
+                />
               </div>
             </div>
           </div>

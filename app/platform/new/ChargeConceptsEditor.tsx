@@ -34,6 +34,23 @@ type ChargeConceptsEditorProps = {
   equipmentTypeOptions: PlatformEquipmentTypeOption[];
   inputClassName: string;
   textareaClassName: string;
+  initialChargeItems?: Array<{
+    conceptName: string;
+    equipmentType: string;
+    quantity: string;
+    price: string;
+    vatMode: "sin_iva" | "mas_iva";
+    currency: "USD" | "MXN" | "EUR";
+    notes: string;
+  }>;
+  initialOtherItems?: Array<{
+    name: string;
+    goodsDeclaredValue: string;
+    valueType: "monto" | "porcentaje";
+    value: string;
+    vatMode: "sin_iva" | "mas_iva";
+    notes: string;
+  }>;
 };
 
 const IVA_RATE = 0.16;
@@ -78,9 +95,59 @@ export function ChargeConceptsEditor({
   equipmentTypeOptions,
   inputClassName,
   textareaClassName,
+  initialChargeItems,
+  initialOtherItems,
 }: ChargeConceptsEditorProps) {
-  const [concepts, setConcepts] = useState<ChargeConcept[]>([createEmptyConcept()]);
-  const [otherConcepts, setOtherConcepts] = useState<OtherConcept[]>([createEmptyOtherConcept()]);
+  const hydratedConcepts: ChargeConcept[] =
+    Array.isArray(initialChargeItems) && initialChargeItems.length > 0
+      ? initialChargeItems
+          .filter((row) => {
+            const value =
+              (row?.conceptName ?? "")?.toString().trim() ??
+              "";
+            return value.length > 0;
+          })
+          .map((row) => ({
+              id: crypto.randomUUID(),
+              conceptName: row.conceptName,
+              equipmentType: row.equipmentType ?? "",
+              quantity: row.quantity?.toString() ?? "1",
+              price: row.price?.toString() ?? "",
+              vatMode: row.vatMode ?? "sin_iva",
+              currency: row.currency ?? "USD",
+              notes: row.notes ?? "",
+            }))
+      : [];
+  const initialConcepts: ChargeConcept[] = hydratedConcepts.length > 0
+    ? hydratedConcepts
+    : [createEmptyConcept()];
+
+  const hydratedOthers: OtherConcept[] =
+    Array.isArray(initialOtherItems) && initialOtherItems.length > 0
+      ? initialOtherItems
+          .filter((row) => {
+            const value =
+              (row?.name ?? "")?.toString().trim() ??
+              "";
+            return value.length > 0;
+          })
+          .map((row) => ({
+              id: crypto.randomUUID(),
+              name: row.name,
+              goodsDeclaredValue: row.goodsDeclaredValue?.toString() ?? "",
+              valueType: row.valueType ?? "monto",
+              value: row.value?.toString() ?? "",
+              vatMode: row.vatMode ?? "sin_iva",
+              currency: "MXN",
+              notes: row.notes ?? "",
+            }))
+      : [];
+  const initialOthers: OtherConcept[] = hydratedOthers.length > 0
+    ? hydratedOthers
+    : [createEmptyOtherConcept()];
+
+  const [concepts, setConcepts] = useState<ChargeConcept[]>(initialConcepts);
+  const [otherConcepts, setOtherConcepts] = useState<OtherConcept[]>(initialOthers);
 
   const totals = useMemo(() => {
     return concepts.reduce(

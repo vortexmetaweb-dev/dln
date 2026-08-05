@@ -1,6 +1,16 @@
-import Link from "next/link";
-import { ArrowUpRightIcon, FileDownIcon, FileTextIcon } from "lucide-react";
+"use client";
 
+import Link from "next/link";
+import { useTransition } from "react";
+import {
+  ArrowUpRightIcon,
+  CopyIcon,
+  FileDownIcon,
+  FileEditIcon,
+  FileTextIcon,
+} from "lucide-react";
+
+import { duplicateMaritimeQuote } from "@/app/actions/quotes";
 import { Button } from "@/components/ui/button";
 import type { PlatformQuote } from "@/lib/quotes";
 
@@ -58,7 +68,7 @@ export function QuotesTable({ quotes }: QuotesTableProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-[#d7e2f1] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,255,0.98)_100%)] shadow-[0_18px_60px_rgba(16,24,40,0.08)] backdrop-blur-xl">
       <div className="border-b border-[#dfe7f3] bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(249,251,255,0.82)_100%)] px-6 py-4">
-        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem_12rem] items-center gap-4 text-[0.69rem] font-medium uppercase tracking-[0.18em] text-[#6b7280]">
+        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem_17rem] items-center gap-4 text-[0.69rem] font-medium uppercase tracking-[0.18em] text-[#6b7280]">
           <span>Cotizacion</span>
           <span>Cliente y ruta</span>
           <span>Totales</span>
@@ -69,64 +79,7 @@ export function QuotesTable({ quotes }: QuotesTableProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3">
         {quotes.map((quote) => (
-          <div
-            key={quote.id}
-            className="group grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem_12rem] items-center gap-4 border-b border-[#e8edf5] px-3 py-3.5 transition-colors duration-200 hover:bg-[#f7faff] last:border-b-0"
-          >
-            <div className="min-w-0 space-y-1">
-              <p className="truncate text-[0.95rem] font-medium tracking-[-0.02em] text-[#111827]">
-                {quote.quoteNumber}
-              </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.78rem] text-[#6b7280]">
-                <span>{quote.issueDateLabel}</span>
-                <span>Vence {quote.validUntilLabel}</span>
-                <span>{quote.currenciesLabel}</span>
-              </div>
-            </div>
-
-            <div className="min-w-0 space-y-1">
-              <p className="truncate text-[0.88rem] font-medium text-[#111827]">
-                {quote.clientCompanyName}
-              </p>
-              <p className="truncate text-[0.78rem] text-[#6b7280]">{quote.clientContactName}</p>
-              <p className="truncate text-[0.78rem] text-[#6b7280]">
-                {quote.routeOriginPort} → {quote.routeDestinationPort} · {quote.routeShippingLine}
-              </p>
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-[0.88rem] font-medium text-[#111827]">
-                {quote.totalsSummary}
-              </p>
-              <p className="truncate text-[0.78rem] text-[#6b7280]">Creada {quote.createdAtLabel}</p>
-            </div>
-
-            <div>
-              <span
-                className={[
-                  "inline-flex rounded-full border px-2.5 py-1 text-[0.72rem] font-medium",
-                  getStatusClassName(quote.status),
-                ].join(" ")}
-              >
-                {getStatusLabel(quote.status)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <Button asChild size="sm" variant="outline" className="rounded-full">
-                <Link href={`/platform/quotes/${quote.id}/pdf`} target="_blank">
-                  <FileTextIcon />
-                  Ver PDF
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="rounded-full">
-                <Link href={`/platform/quotes/${quote.id}/pdf?download=1`}>
-                  <FileDownIcon />
-                  Descargar
-                </Link>
-              </Button>
-            </div>
-          </div>
+          <QuoteRow key={quote.id} quote={quote} />
         ))}
       </div>
 
@@ -144,6 +97,91 @@ export function QuotesTable({ quotes }: QuotesTableProps) {
             <ArrowUpRightIcon className="size-3.5" />
           </Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function QuoteRow({ quote }: { quote: PlatformQuote }) {
+  const [isDuplicating, startDuplicate] = useTransition();
+
+  return (
+    <div className="group grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem_17rem] items-center gap-4 border-b border-[#e8edf5] px-3 py-3.5 transition-colors duration-200 hover:bg-[#f7faff] last:border-b-0">
+      <div className="min-w-0 space-y-1">
+        <p className="truncate text-[0.95rem] font-medium tracking-[-0.02em] text-[#111827]">
+          {quote.quoteNumber}
+        </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.78rem] text-[#6b7280]">
+          <span>{quote.issueDateLabel}</span>
+          <span>Vence {quote.validUntilLabel}</span>
+          <span>{quote.currenciesLabel}</span>
+        </div>
+      </div>
+
+      <div className="min-w-0 space-y-1">
+        <p className="truncate text-[0.88rem] font-medium text-[#111827]">
+          {quote.clientCompanyName}
+        </p>
+        <p className="truncate text-[0.78rem] text-[#6b7280]">{quote.clientContactName}</p>
+        <p className="truncate text-[0.78rem] text-[#6b7280]">
+          {quote.routeOriginPort} → {quote.routeDestinationPort} · {quote.routeShippingLine}
+        </p>
+      </div>
+
+      <div className="min-w-0">
+        <p className="truncate text-[0.88rem] font-medium text-[#111827]">
+          {quote.totalsSummary}
+        </p>
+        <p className="truncate text-[0.78rem] text-[#6b7280]">Creada {quote.createdAtLabel}</p>
+      </div>
+
+      <div>
+        <span
+          className={[
+            "inline-flex rounded-full border px-2.5 py-1 text-[0.72rem] font-medium",
+            getStatusClassName(quote.status),
+          ].join(" ")}
+        >
+          {getStatusLabel(quote.status)}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-full"
+          onClick={() => {
+            startDuplicate(async () => {
+              await duplicateMaritimeQuote(quote.id);
+            });
+          }}
+          disabled={isDuplicating}
+        >
+          <CopyIcon className="size-4 mr-1.5" />
+          {isDuplicating ? "Duplicando..." : "Duplicar"}
+        </Button>
+
+        <Button asChild size="sm" variant="outline" className="rounded-full">
+          <Link href={`/platform/new?id=${encodeURIComponent(quote.id)}`}>
+            <FileEditIcon className="size-4 mr-1.5" />
+            Editar
+          </Link>
+        </Button>
+
+        <Button asChild size="sm" variant="outline" className="rounded-full">
+          <Link href={`/platform/quotes/${quote.id}/pdf`} target="_blank">
+            <FileTextIcon className="size-4 mr-1.5" />
+            PDF
+          </Link>
+        </Button>
+
+        <Button asChild size="sm" variant="outline" className="rounded-full">
+          <Link href={`/platform/quotes/${quote.id}/pdf?download=1`}>
+            <FileDownIcon className="size-4 mr-1.5" />
+            Descargar
+          </Link>
+        </Button>
       </div>
     </div>
   );
