@@ -212,15 +212,17 @@ const styles = StyleSheet.create({
   },
   summaryStrip: {
     flexDirection: "row",
-    gap: 12,
+    flexWrap: "wrap",
+    gap: 10,
     marginBottom: 16,
   },
   summaryCard: {
     flex: 1,
+    minWidth: 128,
     borderWidth: 1,
     borderColor: DlnColors.line,
     borderRadius: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: DlnColors.surfaceAlt,
   },
@@ -236,10 +238,10 @@ const styles = StyleSheet.create({
     backgroundColor: DlnColors.surfaceMuted,
   },
   summaryLabel: {
-    fontSize: 7.5,
-    letterSpacing: 0.9,
+    fontSize: 7.2,
+    letterSpacing: 0.85,
     textTransform: "uppercase",
-    marginBottom: 5,
+    marginBottom: 4,
   },
   summaryLabelLight: {
     color: "#B9C9EE",
@@ -251,9 +253,9 @@ const styles = StyleSheet.create({
     color: DlnColors.muted,
   },
   summaryValue: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 800,
-    lineHeight: 1.28,
+    lineHeight: 1.22,
   },
   summaryValueNavy: {
     color: "#FFFFFF",
@@ -265,9 +267,9 @@ const styles = StyleSheet.create({
     color: DlnColors.navyInk,
   },
   summaryMeta: {
-    marginTop: 5,
-    fontSize: 8,
-    lineHeight: 1.35,
+    marginTop: 4,
+    fontSize: 7.6,
+    lineHeight: 1.3,
   },
   summaryMetaNavy: {
     color: "#CFDBF3",
@@ -806,6 +808,45 @@ function formatDateLabel(value: string | null) {
   }).format(parsed);
 }
 
+function formatFreeDays(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "0 días";
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) return "0 días";
+    const asInt = Math.round(value);
+    return asInt === 1 ? "1 día" : `${asInt} días`;
+  }
+
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) return "0 días";
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const parsed = Number.parseFloat(trimmed);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      const asInt = Math.round(parsed);
+      return asInt === 1 ? "1 día" : `${asInt} días`;
+    }
+  }
+
+  if (/\d/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `${trimmed} (días)`;
+}
+
+function formatTransitTime(value: string | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "Tiempo de tránsito por confirmar";
+  }
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) {
+    return "Tiempo de tránsito por confirmar";
+  }
+  return trimmed;
+}
+
 function getChargeTotalsByCurrency(quote: PlatformQuoteDetail) {
   return quote.chargeItems.reduce<Record<string, { base: number; vat: number; total: number }>>(
     (acc, item) => {
@@ -932,16 +973,16 @@ export function QuotePdfDocument({ quote }: { quote: PlatformQuoteDetail }) {
         <View style={styles.body}>
           <View style={styles.summaryStrip}>
             <View style={[styles.summaryCard, styles.summaryCardNavy]}>
-              <Text style={[styles.summaryLabel, styles.summaryLabelLight]}>Puerto de origen</Text>
+              <Text style={[styles.summaryLabel, styles.summaryLabelLight]}>Origen</Text>
               <Text style={[styles.summaryValue, styles.summaryValueNavy]}>
                 {quote.routeOriginPort}
               </Text>
               <Text style={[styles.summaryMeta, styles.summaryMetaNavy]}>
-                {quote.routeIncoterm || "Incoterm por confirmar"} · Loading
+                {quote.routeIncoterm || "Incoterm por confirmar"}
               </Text>
             </View>
             <View style={[styles.summaryCard, styles.summaryCardOrange]}>
-              <Text style={[styles.summaryLabel, styles.summaryLabelOrange]}>Puerto de destino</Text>
+              <Text style={[styles.summaryLabel, styles.summaryLabelOrange]}>Destino</Text>
               <Text style={[styles.summaryValue, styles.summaryValueOrange]}>
                 {quote.routeDestinationPort}
               </Text>
@@ -949,13 +990,22 @@ export function QuotePdfDocument({ quote }: { quote: PlatformQuoteDetail }) {
                 {quote.routeShippingLine || "Naviera por confirmar"}
               </Text>
             </View>
+            <View style={[styles.summaryCard, styles.summaryCardOrange]}>
+              <Text style={[styles.summaryLabel, styles.summaryLabelOrange]}>Días libres</Text>
+              <Text style={[styles.summaryValue, styles.summaryValueOrange]}>
+                {formatFreeDays(quote.routeFreeDays)}
+              </Text>
+              <Text style={[styles.summaryMeta, styles.summaryMetaOrange]}>
+                Sin costo extra en puerto
+              </Text>
+            </View>
             <View style={[styles.summaryCard, styles.summaryCardMuted]}>
-              <Text style={[styles.summaryLabel, styles.summaryLabelDefault]}>Días libres</Text>
+              <Text style={[styles.summaryLabel, styles.summaryLabelDefault]}>Tránsito</Text>
               <Text style={[styles.summaryValue, styles.summaryValueDefault]}>
-                {`${quote.routeFreeDays ?? 0} días`}
+                {formatTransitTime(quote.routeTransitTime)}
               </Text>
               <Text style={[styles.summaryMeta, styles.summaryMetaDefault]}>
-                {quote.routeTransitTime || "Tiempo de tránsito por confirmar"}
+                Origen → destino · Est.
               </Text>
             </View>
           </View>
