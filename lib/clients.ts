@@ -5,6 +5,7 @@ type ClientRecord = Record<string, unknown>;
 export type PlatformClient = {
   id: string;
   company: string;
+  sellerName: string | null;
   email: string;
   phone: string;
   country: string;
@@ -52,6 +53,7 @@ function formatCreatedAt(record: ClientRecord) {
 function mapClient(record: ClientRecord): PlatformClient {
   const id = pickFirstString(record.id) ?? "sin-id";
   const company = pickFirstString(record.company, record.name) ?? "Sin empresa";
+  const sellerName = pickFirstString(record.seller_name, record.sellerName);
   const email = pickFirstString(record.email) ?? "Sin correo";
   const phone = pickFirstString(record.phone) ?? "Sin telefono";
   const country = pickFirstString(record.country) ?? "Sin pais";
@@ -60,6 +62,7 @@ function mapClient(record: ClientRecord): PlatformClient {
   return {
     id,
     company,
+    sellerName: sellerName ?? null,
     email,
     phone,
     country,

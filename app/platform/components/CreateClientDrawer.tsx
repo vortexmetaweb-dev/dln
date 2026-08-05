@@ -29,6 +29,7 @@ type CountryOption = {
 
 type DraftClient = {
   company: string;
+  sellerName: string;
   email: string;
   phone: string;
   country: string;
@@ -92,6 +93,7 @@ async function loadCountryOptions() {
 
 const emptyDraft: DraftClient = {
   company: "",
+  sellerName: "",
   email: "",
   phone: defaultCountry.dialCode,
   country: defaultCountry.label,
@@ -271,6 +273,7 @@ export function CreateClientDrawer({ isOpen, onClose }: CreateClientDrawerProps)
       const result = await createClientRecord({
         id: clientId,
         company: draft.company,
+        sellerName: draft.sellerName,
         email: draft.email,
         phone: draft.phone,
         country: draft.country,
@@ -375,6 +378,14 @@ export function CreateClientDrawer({ isOpen, onClose }: CreateClientDrawerProps)
                 onChange={handleChange("company")}
                 type="text"
                 placeholder="Empresa"
+                className="h-10 w-full rounded-full border border-[#e5e7eb] bg-white px-3.5 text-[0.82rem] text-[#111111] outline-none placeholder:text-[#6f6f68]"
+              />
+
+              <input
+                value={draft.sellerName}
+                onChange={handleChange("sellerName")}
+                type="text"
+                placeholder="Nombre del vendedor"
                 className="h-10 w-full rounded-full border border-[#e5e7eb] bg-white px-3.5 text-[0.82rem] text-[#111111] outline-none placeholder:text-[#6f6f68]"
               />
 

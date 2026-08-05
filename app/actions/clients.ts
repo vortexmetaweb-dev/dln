@@ -8,6 +8,11 @@ import { createClient } from "@/lib/supabase/server";
 const createClientSchema = z.object({
   id: z.string().uuid(),
   company: z.string().trim().min(2, "Ingresa el nombre de la empresa."),
+  sellerName: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null)),
   email: z
     .string()
     .trim()
@@ -46,6 +51,7 @@ export type CreateClientActionState = {
 export async function createClientRecord(input: {
   id: string;
   company: string;
+  sellerName?: string;
   email?: string;
   phone?: string;
   country?: string;
@@ -80,6 +86,7 @@ export async function createClientRecord(input: {
   const { error: insertError } = await supabase.from("clients").insert({
     id: payload.id,
     company: payload.company,
+    seller_name: payload.sellerName,
     email: payload.email,
     phone: payload.phone,
     country: payload.country,

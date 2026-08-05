@@ -1,6 +1,7 @@
 create table if not exists public.clients (
   id uuid primary key,
   company text not null,
+  seller_name text,
   email text,
   phone text,
   country text,
