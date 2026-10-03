@@ -32,6 +32,9 @@ const LOGO_DATA_URL = loadLogoDataUrl();
 const DlnColors = {
   navy: "#0B2A6B",
   navyDark: "#061B4A",
+
+  headerBg: "#708090",
+
   navySoft: "#E8EEFB",
   navyInk: "#0C1B46",
   blue: "#1D4ED8",
@@ -51,7 +54,10 @@ const DlnColors = {
 
 const styles = StyleSheet.create({
   page: {
-    padding: 0,
+    paddingTop: 18,
+    paddingHorizontal: 32,
+    paddingBottom: 24,
+
     fontSize: 10,
     fontFamily: "Helvetica",
     color: DlnColors.ink,
@@ -60,12 +66,18 @@ const styles = StyleSheet.create({
   topRibbon: {
     height: 9,
     backgroundColor: DlnColors.orange,
+
+    marginTop: -18,
+    marginHorizontal: -32,
   },
   headerWrap: {
+    marginHorizontal: -32,
+
     paddingHorizontal: 30,
     paddingTop: 22,
     paddingBottom: 18,
-    backgroundColor: DlnColors.navy,
+
+    backgroundColor: DlnColors.headerBg,
     color: "#FFFFFF",
   },
   headerRow: {
@@ -204,11 +216,11 @@ const styles = StyleSheet.create({
   accentBar: {
     height: 4,
     backgroundColor: DlnColors.orange,
+
+    marginHorizontal: -32,
   },
   body: {
-    paddingHorizontal: 32,
     paddingTop: 18,
-    paddingBottom: 16,
   },
   summaryStrip: {
     flexDirection: "row",
@@ -467,10 +479,6 @@ const styles = StyleSheet.create({
     color: "#AF511D",
   },
   table: {
-    borderWidth: 1,
-    borderColor: DlnColors.line,
-    borderRadius: 14,
-    overflow: "hidden",
     backgroundColor: DlnColors.surface,
   },
   tableHeader: {
@@ -478,6 +486,14 @@ const styles = StyleSheet.create({
     backgroundColor: DlnColors.navy,
     paddingVertical: 9,
     paddingHorizontal: 12,
+
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: DlnColors.line,
+
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   tableHeaderText: {
     color: "#FFFFFF",
@@ -488,17 +504,23 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
+
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F8",
+    borderColor: "#EEF2F8",
+
     paddingVertical: 9,
     paddingHorizontal: 12,
+
     backgroundColor: DlnColors.surface,
   },
   rowAlt: {
     backgroundColor: DlnColors.surfaceAlt,
   },
   lastRow: {
-    borderBottomWidth: 0,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
   vatPill: {
     alignSelf: "flex-start",
@@ -1080,7 +1102,11 @@ export function QuotePdfDocument({ quote }: { quote: PlatformQuoteDetail }) {
             </View>
 
             <View style={styles.table}>
-              <View style={styles.tableHeader}>
+              <View
+                style={styles.tableHeader}
+                minPresenceAhead={70}
+                fixed
+              >
                 <Text style={[styles.tableHeaderText, styles.colConcept]}>Concepto</Text>
                 <Text style={[styles.tableHeaderText, styles.colEquipment]}>Equipo</Text>
                 <Text style={[styles.tableHeaderText, styles.colTiny]}>Cant.</Text>
@@ -1101,7 +1127,7 @@ export function QuotePdfDocument({ quote }: { quote: PlatformQuoteDetail }) {
                     : [styles.row];
 
                 return (
-                  <View key={item.id} style={rowClass}>
+                  <View key={item.id} style={rowClass} wrap={false}>
                     <View style={styles.colConcept}>
                       <Text style={styles.cellText}>{item.conceptName}</Text>
                       <View

@@ -68,7 +68,7 @@ export function QuotesTable({ quotes }: QuotesTableProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-[#d7e2f1] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,255,0.98)_100%)] shadow-[0_18px_60px_rgba(16,24,40,0.08)] backdrop-blur-xl">
       <div className="border-b border-[#dfe7f3] bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(249,251,255,0.82)_100%)] px-6 py-4">
-        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem_17rem] items-center gap-4 text-[0.69rem] font-medium uppercase tracking-[0.18em] text-[#6b7280]">
+        <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1.35fr)_minmax(0,0.85fr)_7rem_27rem] items-center gap-4 text-[0.69rem] font-medium uppercase tracking-[0.18em] text-[#6b7280]">
           <span>Cotizacion</span>
           <span>Cliente y ruta</span>
           <span>Totales</span>
@@ -106,7 +106,7 @@ function QuoteRow({ quote }: { quote: PlatformQuote }) {
   const [isDuplicating, startDuplicate] = useTransition();
 
   return (
-    <div className="group grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem_17rem] items-center gap-4 border-b border-[#e8edf5] px-3 py-3.5 transition-colors duration-200 hover:bg-[#f7faff] last:border-b-0">
+    <div className="group grid grid-cols-[minmax(0,1.15fr)_minmax(0,1.35fr)_minmax(0,0.85fr)_7rem_27rem] items-center gap-4 border-b border-[#e8edf5] px-3 py-3.5 transition-colors duration-200 hover:bg-[#f7faff] last:border-b-0">
       <div className="min-w-0 space-y-1">
         <p className="truncate text-[0.95rem] font-medium tracking-[-0.02em] text-[#111827]">
           {quote.quoteNumber}
@@ -146,7 +146,7 @@ function QuoteRow({ quote }: { quote: PlatformQuote }) {
         </span>
       </div>
 
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex min-w-0 items-center justify-end gap-2 whitespace-nowrap">
         <Button
           size="sm"
           variant="outline"
