@@ -98,6 +98,9 @@ const styles = StyleSheet.create({
     width: 210,
     height: 76,
     objectFit: "contain",
+
+    transform: "scale(1.6)",
+    transformOrigin: "center center",
   },
   brandTitles: {
     flexDirection: "column",
